@@ -15,26 +15,29 @@
 # 2，提取其中圣经经文并出处。
 
 import json
+from zhconv import convert
 from requests_html import HTMLSession
 from requests_html import HTML
 
 
-def get_test():
-    #import requests_html
+def get_common_content(common_str):
+    html = HTML(html=common_str)
+    xpath_str = "//*[contains(@class,'single-post')]"
+    common_list = []
+    for item in html.xpath(xpath_str):
+        xpath_str = "//*[contains(@class,'post-text')]"
+        common_text = str(item.xpath(xpath_str, first=True).text)
+        xpath_str = "//*[contains(@class,'post-time')]"
+        common_time = str(item.xpath(xpath_str, first=True).text)
+        xpath_str = "//*[contains(@class,'user-name')]"
+        common_author = str(item.xpath(xpath_str, first=True).text)
+        common_info = "作者：\n" + common_author + "\n时间：" + common_time + "\n" + common_text
+        common_list.append(common_info)
+        #print("时间：\n" + common_time)
+        #print("作者：\n" + common_author)
+        #print("内容：\n" + common_text)
 
-    #session = requests_html.HTMLSession()
-    #r = session.get('https://www.meleenumerique.com/scientist_comite')
-    #r.html.render(sleep=5, timeout=8)
-    #for item in r.html.xpath("//*[contains(@class,'speaker-name')]"):
-    #    print(item.text)
-
-    html_str = "\n<ul class=\"single-post\">\n        <li class=\"post-info\">\n        <a name=\"comment-2745274\"> </a>\n        <span class=\"floor\">#1</span>\n        <span class=\"user-name\"><img class=\"identity-provider comment-icon lazy\" data-original=\"//front.pixfs.net/comment/images/openid-pixnet-icon.gif\" width=\"16\" height=\"16\"> Brandweer</span>                                <span class=\"post-time\">於 2020/12/15 05:31</span>\n            </li>\n    <li class=\"post-photo\">\n        <img src=\"//s.pixfs.net/blog/images/choc/avatar-neutral.png\" alt=\"Brandweer\" height=\"90\" width=\"90\">    </li>\n        <li class=\"post-text\">\n     dddd       <p id=\"comment-2745274\"></p>\n                    <br />\r\n\r\n        </li>\n              </ul>\n"
-    html = HTML(html=html_str)
-    print(html.html)
-
-    xpath_str = "//*[contains(@class,'post-text')]"
-    text = str(html.xpath(xpath_str, first=True).text)
-    print("C" + text)
+    return common_list
 
 def get_indexs():
     proxies = {"https": "http://127.0.0.1:1082"}
@@ -54,13 +57,20 @@ def get_common(url):
     proxies = {"https": "http://127.0.0.1:1082"}
     session = HTMLSession()
     r = session.get(common_url, proxies=proxies)
-    print(r.json())
     r_dict = r.json()
-    html = HTML(html=r_dict['list'])
+    common_list = get_common_content(r_dict['list'])
+    return common_list
+    #print(common_list)
+    #html = HTML(html=r_dict['list'])
+    #xpath_str = "//*[contains(@class,'post-text')]"
+    #text = str(html.xpath(xpath_str, first=True).text)
+    #print("时间" + text)
+    #print("作者" + author)
+    #print("内容" + common_str)
     #print(html.html)
     #print(html.attrs)
-    xpath_str = "//*[@class=\"comment-text\"]"
-    comment = html.find("post-text")
+    #xpath_str = "//*[@class=\"comment-text\"]"
+    #comment = html.find("post-text")
     #comment = html.xpath(xpath_str, first=True)
     #print(r_dict['list'])
     #print(r_dict['total'])
@@ -68,26 +78,29 @@ def get_common(url):
     #print(comment)
 
 def get_page(url):
-    get_common(url)
-    return url
     proxies = {"https": "http://127.0.0.1:1082"}
     session = HTMLSession()
     r = session.get(url, proxies=proxies)
     #r.html.render()
-    links = r.html.absolute_links
-    for link in links:
-        print(link)
-    print(r.html.text)
-    xpath_str = "//*[@id=\"article-box\"]/div/ul"
+    #links = r.html.absolute_links
+    #for link in links:
+    #    print(link)
+    #print(r.html.text)
+    xpath_str = "//*[@id=\"article-box\"]/div/ul/li[1]"
+    page_time = r.html.xpath(xpath_str, first=True).text
+    print("时间：" + page_time)
+
+    xpath_str = "//*[@id=\"article-329364895\"]"
     title =r.html.xpath(xpath_str, first=True).text
-    #print("标题：" + title)
+    print("标题：" + title)
     xpath_str = "//*[@id=\"article-content-inner\"]"
     content = r.html.xpath(xpath_str, first=True).text
-    #print("内容：" + content)
-    xpath_str = "//*[@id=\"comment-text\"]"
-    comment = r.html.xpath(xpath_str, first=True).html
-    print("评论：" + comment)
-    return comment
+
+    content = convert(content, 'zh-hans')
+    print("内容：" + content)
+    common_list = get_common(url)
+    print(common_list)
+    return
 
 def get_page_text():
     text = ""
@@ -96,8 +109,7 @@ def get_page_bible():
     bible = ""
     return bible
 
-get_test()
-#page = get_page('https://mickey1124.pixnet.net/blog/post/329364895')
+page = get_page('https://mickey1124.pixnet.net/blog/post/329364895')
 #print(page)
 
 #with open("a.txt",'w',encoding='utf-8') as f:
