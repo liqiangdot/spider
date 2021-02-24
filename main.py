@@ -3,22 +3,11 @@
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 
-#import requests
-#proxies = {"https": "http://127.0.0.1:1082"}
-#response = requests.get("https://mickey1124.pixnet.net/blog", proxies=proxies)
-#requests.encoding = "utf-8"
-#html = response.text.encode('iso-8859-1').decode('utf-8')
-#print(html)
-
-#TODO:
-# 1，按照分类获取信息。
-# 2，提取其中圣经经文并出处。
-
-import json
 from zhconv import convert
 from requests_html import HTMLSession
 from requests_html import HTML
 
+root_url = "https://mickey1124.pixnet.net/"
 
 def get_common_content(common_str):
     html = HTML(html=common_str)
@@ -52,6 +41,69 @@ def get_indexs():
         text_link_dict[text] = text_link
     return text_link_dict
 
+def get_last_number(url):
+    end = "/"
+    return url[url.rfind(end) + 1:]
+
+def get_catagory_pages(url):
+    return
+
+def get_category_info(url):
+    proxies = {"https": "http://127.0.0.1:1082"}
+    post_link = "https://mickey1124.pixnet.net/blog/post/"
+    ret_list = []
+    link_list = []
+    page_list = []
+    self_number = get_last_number(url)
+
+    session = HTMLSession()
+    r = session.get(url, proxies=proxies)
+
+    xpath_str = "//*[@id=\"article-box\"]/h3"
+    category_text = str(r.html.xpath(xpath_str, first=True).text)
+    print(category_text)
+
+    for link in r.html.absolute_links:
+        ret = link.find("comments")
+        if ret != -1:
+            continue
+
+        ret = link.find(url)
+        if ret != -1:
+            page = get_last_number(link)
+            if page != self_number:
+                page_list.append(int(page))
+
+    page_total = max(page_list)
+    print(page_total)
+
+    ret_list[0] = url
+    ret_list[1] = category_text
+    ret_list[2] = page_total
+
+    return ret_list
+
+def get_category_links(url):
+    proxies = {"https": "http://127.0.0.1:1082"}
+    post_link = "https://mickey1124.pixnet.net/blog/post/"
+    link_list = []
+    page_list = []
+    self_number = get_last_number(url)
+
+    session = HTMLSession()
+    r = session.get(url, proxies=proxies)
+
+    for link in r.html.absolute_links:
+        ret = link.find("comments")
+        if ret != -1:
+            continue
+
+        ret = link.find(post_link)
+        if ret != -1:
+            link_list.append(link)
+
+    return link_list
+
 def get_common(url):
     common_url = url + "/comments"
     proxies = {"https": "http://127.0.0.1:1082"}
@@ -60,22 +112,6 @@ def get_common(url):
     r_dict = r.json()
     common_list = get_common_content(r_dict['list'])
     return common_list
-    #print(common_list)
-    #html = HTML(html=r_dict['list'])
-    #xpath_str = "//*[contains(@class,'post-text')]"
-    #text = str(html.xpath(xpath_str, first=True).text)
-    #print("时间" + text)
-    #print("作者" + author)
-    #print("内容" + common_str)
-    #print(html.html)
-    #print(html.attrs)
-    #xpath_str = "//*[@class=\"comment-text\"]"
-    #comment = html.find("post-text")
-    #comment = html.xpath(xpath_str, first=True)
-    #print(r_dict['list'])
-    #print(r_dict['total'])
-    #r = r_dict['list']
-    #print(comment)
 
 def get_page(url):
     proxies = {"https": "http://127.0.0.1:1082"}
@@ -91,7 +127,7 @@ def get_page(url):
     print("时间：" + page_time)
 
     xpath_str = "//*[@id=\"article-329364895\"]"
-    title =r.html.xpath(xpath_str, first=True).text
+    title = r.html.xpath(xpath_str, first=True).text
     print("标题：" + title)
     xpath_str = "//*[@id=\"article-content-inner\"]"
     content = r.html.xpath(xpath_str, first=True).text
@@ -109,7 +145,9 @@ def get_page_bible():
     bible = ""
     return bible
 
-page = get_page('https://mickey1124.pixnet.net/blog/post/329364895')
+#page = get_page('https://mickey1124.pixnet.net/blog/post/329364895')
+get_category_links('https://mickey1124.pixnet.net/blog/category/3270852')
+
 #print(page)
 
 #with open("a.txt",'w',encoding='utf-8') as f:
