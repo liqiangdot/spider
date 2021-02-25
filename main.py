@@ -4,14 +4,15 @@
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 import os
-import random
 import time
-from ebooklib import epub
-from zhconv import convert
-from requests_html import HTMLSession
-from requests_html import HTML
+import random
 import urllib3
 import pickle
+from ebooklib import epub
+from zhconv import convert
+from threading import Thread
+from requests_html import HTML
+from requests_html import HTMLSession
 
 urllib3.disable_warnings()
 
@@ -99,6 +100,18 @@ nav[epub|type~='toc'] > ol > li > ol > li {
     epub.write_epub('test.epub', book, {})
 
     return
+def  single_down_category(links, category ):
+    i = 0
+    file_str = "\n@@@@@@ " + category + "@@@@@@\n"
+    for link in links:
+        time.sleep(random.randint(0, 5))
+        i += 1
+        print("即将下载链接[" + str(i) + "]：" + link)
+        page_dict = get_page(link)
+        for title in page_dict:
+            file_str += "\n&&&&&& " + title + " &&&&&&\n"
+            file_str += "\n" + page_dict[title] + ""
+        write_file(file_str)
 
 def get_host_content():
     host_str = ""
