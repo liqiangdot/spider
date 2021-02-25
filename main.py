@@ -3,6 +3,7 @@
 
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+
 import os
 import time
 import random
@@ -13,7 +14,7 @@ from zhconv import convert
 from threading import Thread
 from requests_html import HTML
 from requests_html import HTMLSession
-
+import threading
 urllib3.disable_warnings()
 
 root_url = "https://mickey1124.pixnet.net/"
@@ -100,18 +101,24 @@ nav[epub|type~='toc'] > ol > li > ol > li {
     epub.write_epub('test.epub', book, {})
 
     return
-def  single_down_category(links, category ):
+
+lock = threading.Lock()
+def  single_down_category(links, category, pthread_num ):
     i = 0
     file_str = "\n@@@@@@ " + category + "@@@@@@\n"
     for link in links:
-        time.sleep(random.randint(0, 5))
+        wait_time = random.randint(0, 12)
+        time.sleep(wait_time)
         i += 1
-        print("即将下载链接[" + str(i) + "]：" + link)
+        print("(" + str(wait_time) + ")即将下载链接(" + category + ")[" + str(i) + "]线程号[" + str(pthread_num) + ")]：" + link)
         page_dict = get_page(link)
         for title in page_dict:
             file_str += "\n&&&&&& " + title + " &&&&&&\n"
             file_str += "\n" + page_dict[title] + ""
+
+        lock.acquire()
         write_file(file_str)
+        lock.release()
 
 def get_host_content():
     host_str = ""
@@ -135,7 +142,12 @@ def get_host_content():
     for category in absolute_dict:
         # index -> category
         # absolute_dict[index] -> link
+        i += 1
         file_str = "\n@@@@@@ " + category + "@@@@@@\n"
+        t = Thread(target=single_down_category, args=(absolute_dict[category], category, i))
+        t.start()
+        print("即将下载第[" + str(i) + "]线程：" + category)
+        '''
         for link in absolute_dict[category]:
             time.sleep(random.randint(0, 5))
             i += 1
@@ -145,6 +157,7 @@ def get_host_content():
                 file_str += "\n&&&&&& " + title + " &&&&&&\n"
                 file_str += "\n" + page_dict[title] + ""
             write_file(file_str)
+        '''
 
     #print(file_str)
     return
