@@ -3,17 +3,19 @@
 
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-
+import os
 import random
 import time
 from ebooklib import epub
 from zhconv import convert
 from requests_html import HTMLSession
 from requests_html import HTML
+import urllib3
+import pickle
+
+urllib3.disable_warnings()
 
 root_url = "https://mickey1124.pixnet.net/"
-absolute_dict = {}
-absolute_site = {}
 
 def create_pub():
     book = epub.EpubBook()
@@ -101,14 +103,28 @@ nav[epub|type~='toc'] > ol > li > ol > li {
 def get_host_content():
     host_str = ""
     file_str = ""
-    get_indexs()
+    absolute_dict = {}
+    if os.path.exists("data.txt"):
+        f = open("data.txt", 'rb')
+        absolute_dict = pickle.load(f)
+    else:
+        absolute_dict = get_indexs()
+        f = open('data.txt', 'wb')
+        pickle.dump(absolute_dict, f)
+
+    i = 0
+    for category in absolute_dict:
+        for link in absolute_dict[category]:
+            i += 1
+    print("即将下载链接总数[" + str(i) + "]")
+
     i = 0
     for category in absolute_dict:
         # index -> category
         # absolute_dict[index] -> link
         file_str = "\n@@@@@@ " + category + "@@@@@@\n"
         for link in absolute_dict[category]:
-            time.sleep(random.randint(0,5))
+            time.sleep(random.randint(0, 5))
             i += 1
             print("即将下载链接[" + str(i) + "]：" + link)
             page_dict = get_page(link)
@@ -127,10 +143,22 @@ def get_common_content(common_str):
     for item in html.xpath(xpath_str):
         xpath_str = "//*[contains(@class,'post-text')]"
         common_text = str(item.xpath(xpath_str, first=True).text)
+
+        common_time = ""
         xpath_str = "//*[contains(@class,'post-time')]"
-        common_time = str(item.xpath(xpath_str, first=True).text)
+        ret_time = item.xpath(xpath_str, first=True)
+        if ret_time is None:
+            print("注释时间为空")
+        else:
+            common_time = str(item.xpath(xpath_str, first=True).text)
+
+        common_author = ""
         xpath_str = "//*[contains(@class,'user-name')]"
-        common_author = str(item.xpath(xpath_str, first=True).text)
+        ret_author = item.xpath(xpath_str, first=True)
+        if ret_author is None:
+            print("注释作者为空")
+        else:
+            common_author = str(item.xpath(xpath_str, first=True).text)
         common_info = "作者：" + common_author + "\n时间：" + common_time + "\n" + common_text
         common_list.append(common_info)
         #print("时间：\n" + common_time)
@@ -148,10 +176,10 @@ def write_file(s):
 def get_indexs():
     proxies = {"https": "http://127.0.0.1:1082"}
     session = HTMLSession()
-    r = session.get('https://mickey1124.pixnet.net/blog', proxies=proxies)
-    text_link_dict = {}
+    r = session.get('https://mickey1124.pixnet.net/blog', proxies=proxies, verify=False)
+    absolute_dict = {}
 
-    for i in range(1, 24): # 1 ~23
+    for i in range(1, 24):  # 1 ~23
         xpath_str = "//*[@id=\"category\"]/div/ul/li[" + str(i) + "]"
         text_title = (r.html.xpath(xpath_str, first=True).text)
         print("分类名称：" + text_title)
@@ -184,7 +212,7 @@ def get_catagory_pages(url):
     self_number = get_last_number(url)
 
     session = HTMLSession()
-    r = session.get(url, proxies=proxies)
+    r = session.get(url, proxies=proxies, verify=False)
 
     for link in r.html.absolute_links:
         ret = link.find("comments")
@@ -209,7 +237,7 @@ def get_category_links(url):
     link_list = []
 
     session = HTMLSession()
-    r = session.get(url, proxies=proxies)
+    r = session.get(url, proxies=proxies, verify=False)
 
     for link in r.html.absolute_links:
         ret = link.find("comments")
@@ -226,7 +254,7 @@ def get_common(url):
     common_url = url + "/comments"
     proxies = {"https": "http://127.0.0.1:1082"}
     session = HTMLSession()
-    r = session.get(common_url, proxies=proxies)
+    r = session.get(common_url, proxies=proxies, verify=False)
     r_dict = r.json()
 
     common_list = get_common_content(r_dict['list'])
@@ -236,7 +264,7 @@ def get_page(url):
     proxies = {"https": "http://127.0.0.1:1082"}
     ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0'
     session = HTMLSession()
-    r = session.get(url, proxies=proxies, headers={'user-agent': ua})
+    r = session.get(url, proxies=proxies, headers={'user-agent': ua}, verify=False)
     #r.html.render(scrolldown=5,sleep=3)
     page_dict = {}
     self_number = get_last_number(url)
@@ -272,11 +300,11 @@ def get_page_bible():
     bible = ""
     return bible
 
-#write_file("sss")
 #create_pub()
 #get_indexs()
-#get_host_content()
-page = get_page('https://mickey1124.pixnet.net/blog/post/269195376')
+
+get_host_content()
+#page = get_page('https://mickey1124.pixnet.net/blog/post/269195376')
 #get_category_links('https://mickey1124.pixnet.net/blog/category/3270852')
 
 #with open("a.txt",'w',encoding='utf-8') as f:
