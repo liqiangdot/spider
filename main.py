@@ -19,25 +19,38 @@ urllib3.disable_warnings()
 
 root_url = "https://mickey1124.pixnet.net/"
 
+def add_epub_item(page_dict):
+    style = '''BODY { text-align: justify;}'''
+    default_css = epub.EpubItem(uid="style_default", file_name="style/default.css", media_type="text/css", content=style)
+
+    item_list = []
+    for page_title in page_dict:
+            item = epub.EpubHtml(title=page_title, file_name=page_title + '.xhtml')
+            item.content = '<h1>' + page_title + '</h1><p>' + page_dict[page_title] + '</p>'
+            item.set_language('cn')
+            item.properties.append('rendition:layout-pre-paginated rendition:orientation-landscape rendition:spread-none')
+            item.add_item(default_css)
+            item_list.append(item)
+    return item_list
+
 def create_pub():
     book = epub.EpubBook()
 
     # add metadata
-    book.set_identifier('')
+    book.set_identifier(time.strftime("%Y%m%d%H%M%S", time.localtime()))
     book.set_title('基督教小小羊園地')
     book.set_language('cn')
-
     book.add_author('小小羊')
 
-    # intro chapter
+    # define intro chapter
     c1 = epub.EpubHtml(title='简介', file_name='intro.xhtml', lang='cn')
     c1.content = u'<html><head></head><body><h1>約翰福音8：32</h1><p>你們必曉得真理，真理必叫你們得以自由</p></body></html>'
 
-    # defube style
+    # define style
     style = '''BODY { text-align: justify;}'''
 
-    default_css = epub.EpubItem(uid="style_default", file_name="style/default.css", media_type="text/css",
-                                content=style)
+    # define css
+    default_css = epub.EpubItem(uid="style_default", file_name="style/default.css", media_type="text/css", content=style)
     book.add_item(default_css)
 
     # about chapter
@@ -57,9 +70,8 @@ def create_pub():
     # - add auto created links to chapters
 
     book.toc = (epub.Link('intro.xhtml', '简介', 'intro'),
-                (epub.Section('Languages'),
-                 (c1, c2))
-                )
+                (epub.Section('Languages'), (c1, c2))
+               )
 
     # add navigation files
     book.add_item(epub.EpubNcx())
@@ -105,20 +117,27 @@ nav[epub|type~='toc'] > ol > li > ol > li {
 lock = threading.Lock()
 def  single_down_category(links, category, pthread_num ):
     i = 0
-    file_str = "\n@@@@@@ " + category + "@@@@@@\n"
+    category_dict = {}  # return value
+    page_dicts = {} # dicts that page content
     for link in links:
-        wait_time = random.randint(0, 12)
+        file_str = "\n@@@@@@ " + category + "@@@@@@\n"
+        wait_time = random.randint(0, 8)
         time.sleep(wait_time)
         i += 1
         print("(" + str(wait_time) + ")即将下载链接(" + category + ")[" + str(i) + "]线程号[" + str(pthread_num) + ")]：" + link)
         page_dict = get_page(link)
         for title in page_dict:
             file_str += "\n&&&&&& " + title + " &&&&&&\n"
-            file_str += "\n" + page_dict[title] + ""
+            file_str += "\n" + page_dict[title] + "\n"
+            page_dicts.update(page_dict)
 
         lock.acquire()
         write_file(file_str)
         lock.release()
+
+    category_dict[category] = page_dicts
+
+    return category_dict
 
 def get_host_content():
     host_str = ""
@@ -195,6 +214,12 @@ def get_common_content(common_str):
 
 def write_file(s):
     fo = open("1.txt", "a", encoding="utf-8")
+    fo.write(s)
+    fo.close()
+    return
+
+def write_error(s):
+    fo = open("err.txt", "a", encoding="utf-8")
     fo.write(s)
     fo.close()
     return
@@ -276,23 +301,52 @@ def get_category_links(url):
 
     return link_list
 
+def get_link_exceptions(url):
+    try:
+        ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0'
+        proxies = {"https": "http://127.0.0.1:1082"}
+        session = HTMLSession()
+        r = session.get(url, proxies=proxies, headers={'user-agent': ua}, verify=False, timeout=12)
+        r.raise_for_status()
+
+    except HTMLSession.exceptions.HTTPError as errh:
+        print("Http Error[" + url + "]:", errh)
+        write_error(url)
+    except HTMLSession.exceptions.ConnectionError as errc:
+        print("Error Connecting" + url + "]:", errc)
+        write_error(url)
+    except HTMLSession.exceptions.Timeout as errt:
+        print("Timeout Error" + url + "]:", errt)
+        write_error(url)
+    except HTMLSession.exceptions.RequestException as err:
+        print("OOps[" + url + "]: Something Else", err)
+        write_error(url)
+    return r
+
 def get_common(url):
-    common_url = url + "/comments"
+    url = url + "/comments"
+
+    r = get_link_exceptions(url)
+    '''
     proxies = {"https": "http://127.0.0.1:1082"}
     session = HTMLSession()
-    r = session.get(common_url, proxies=proxies, verify=False)
+    r = session.get(url, proxies=proxies, verify=False)
+    '''
     r_dict = r.json()
 
     common_list = get_common_content(r_dict['list'])
     return common_list
 
 def get_page(url):
+    page_dict = {}
+    r = get_link_exceptions(url)
+    '''
     proxies = {"https": "http://127.0.0.1:1082"}
     ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0'
     session = HTMLSession()
-    r = session.get(url, proxies=proxies, headers={'user-agent': ua}, verify=False)
+    r = session.get(url, proxies=proxies, headers={'user-agent': ua}, verify=False, timeout=12)
     #r.html.render(scrolldown=5,sleep=3)
-    page_dict = {}
+    '''
     self_number = get_last_number(url)
     xpath_str = "//*[@id=\"article-box\"]/div/ul/li[1]"
     page_time = r.html.xpath(xpath_str, first=True).text
@@ -301,12 +355,11 @@ def get_page(url):
     xpath_str = "//*[@id=\"article-" + self_number + "\"]"
     title = r.html.xpath(xpath_str, first=True).text
     #print("标题：" + title)
-    title = convert(title, 'zh-hans')
 
     xpath_str = "//*[@id=\"article-content-inner\"]"
     content = r.html.xpath(xpath_str, first=True).text
 
-    format_text = "时间：" + page_time + '\n' + content
+    format_text = "\n标题：" + title + "\n时间：" + page_time + '\n' + content
 
     common_list = get_common(url)
     format_text += "\n****** 注释 ******\n"
@@ -326,10 +379,8 @@ def get_page_bible():
     bible = ""
     return bible
 
-#create_pub()
-#get_indexs()
-
-get_host_content()
+create_pub()
+#get_host_content()
 #page = get_page('https://mickey1124.pixnet.net/blog/post/269195376')
 #get_category_links('https://mickey1124.pixnet.net/blog/category/3270852')
 
