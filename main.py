@@ -9,6 +9,7 @@ import time
 import random
 import urllib3
 import pickle
+import opencc
 from ebooklib import epub
 from zhconv import convert
 from threading import Thread
@@ -18,7 +19,11 @@ import threading
 urllib3.disable_warnings()
 
 root_url = "https://mickey1124.pixnet.net/"
-#category_dict = {}
+ret_dict = {}
+
+def opencc_t2s(s):
+    cc = opencc.OpenCC('t2s')
+    return cc.convert(s)
 
 def add_epub_item(page_dict):
     style = '''BODY { text-align: justify;}'''
@@ -27,20 +32,16 @@ def add_epub_item(page_dict):
     item_list = []
     for page_title in page_dict:
             item = epub.EpubHtml(title=page_title, file_name=page_title + '.xhtml')
-            item.content = '<h1>' + page_title + '</h1><p>' + page_dict[page_title] + '</p>'
+            page = "<br />".join(page_dict[page_title].split("\n"))
+            item.content = '<h1>' + page_title + '</h1><p>' + page + '</p>'
             item.set_language('cn')
             item.properties.append('rendition:layout-pre-paginated rendition:orientation-landscape rendition:spread-none')
             item.add_item(default_css)
             item_list.append(item)
     return item_list
 
-def create_pub(category_dict):
+def create_pub2(category_dict):
     book = epub.EpubBook()
-
-    print("+++++++++++++++")
-    print(type(category_dict))
-    print((category_dict))
-    print("---------------")
 
     # add metadata
     book.set_identifier(time.strftime("%Y%m%d%H%M%S", time.localtime()))
@@ -52,20 +53,6 @@ def create_pub(category_dict):
     c1 = epub.EpubHtml(title='简介', file_name='intro.xhtml', lang='cn')
     c1.content = u'<html><head></head><body><h1>約翰福音8：32</h1><p>你們必曉得真理，真理必叫你們得以自由</p></body></html>'
 
-    # define style
-    #style = '''BODY { text-align: justify;}'''
-
-    # define css
-    #default_css = epub.EpubItem(uid="style_default", file_name="style/default.css", media_type="text/css", content=style)
-    #book.add_item(default_css)
-
-    # about chapter
-    #c2 = epub.EpubHtml(title='About this book', file_name='about.xhtml')
-    #c2.content = '<h1>About this book</h1><p>Helou, this is my book! There are many books, but this one is mine.</p>'
-    #c2.set_language('cn')
-    #c2.properties.append('rendition:layout-pre-paginated rendition:orientation-landscape rendition:spread-none')
-    #c2.add_item(default_css)
-
     # add chapters to the book
     book.add_item(c1)
     #book.add_item(c2)
@@ -75,10 +62,6 @@ def create_pub(category_dict):
     # - add section
     # - add auto created links to chapters
 
-    #book.toc = (epub.Link('intro.xhtml', '简介', 'intro'),
-    #            (epub.Section('Languages'), (c1, c2))
-    #           )
-
     book.toc = (epub.Link('intro.xhtml', '简介', 'intro'), )
     pa_list = []
     for category in category_dict:  # 分类字典，分类 + 页面字典
@@ -86,18 +69,8 @@ def create_pub(category_dict):
         for cx in items:
             book.add_item(cx)
             pa_list.append(cx)
-        '''
-        for page_dict in category_dict[category]: # 页面字典
-            print(page_dict)
-            print(type(page_dict))
-            items = add_epub_item(page_dict)
-            for cx in items:
-                book.add_item(cx)
-                pa_list.append(cx)
-        '''
-        book.toc = book.toc + ((epub.Section(category), tuple(items)), )
 
-    #book.toc = toc0 + toc2
+        book.toc = book.toc + ((epub.Section(category), tuple(items)), )
 
     # add navigation files
     book.add_item(epub.EpubNcx())
@@ -107,7 +80,7 @@ def create_pub(category_dict):
     style = '''
 @namespace epub "http://www.idpf.org/2007/ops";
 body {
-    font-family: Cambria, Liberation Serif, Bitstream Vera Serif, Georgia, Times, Times New Roman, serif;
+    font-family: Cambria, Liberation Serif, Bitstream Vera Serif, Georgia, Times, Times New Roman, serif; white-space: pre-line;
 }
 h2 {
      text-align: left;
@@ -133,14 +106,82 @@ nav[epub|type~='toc'] > ol > li > ol > li {
     book.add_item(nav_css)
 
     # create spine
-    #book.spine = ['nav', c1, c2]
     book.spine = ['nav', c1]
     book.spine = book.spine + pa_list
-    # for pa in pa_list:
-    #     book.spine.append(pa)
-    #book.spine.extend(pa_list)
-    # print (book.spine)
-    # create epub file
+
+    epub.write_epub('all.epub', book, {})
+
+    return
+
+def create_pub(category_dict):
+    book = epub.EpubBook()
+
+    # add metadata
+    book.set_identifier(time.strftime("%Y%m%d%H%M%S", time.localtime()))
+    book.set_title('基督教小小羊園地')
+    book.set_language('cn')
+    book.add_author('小小羊')
+
+    # define intro chapter
+    c1 = epub.EpubHtml(title='简介', file_name='intro.xhtml', lang='cn')
+    c1.content = u'<html><head></head><body><h1>約翰福音8：32</h1><p>你們必曉得真理，真理必叫你們得以自由</p></body></html>'
+
+    # add chapters to the book
+    book.add_item(c1)
+    #book.add_item(c2)
+
+    # create table of contents
+    # - add manual link
+    # - add section
+    # - add auto created links to chapters
+
+    book.toc = (epub.Link('intro.xhtml', '简介', 'intro'), )
+    pa_list = []
+    for category in category_dict:  # 分类字典，分类 + 页面字典
+        items = add_epub_item(category_dict[category])
+        for cx in items:
+            book.add_item(cx)
+            pa_list.append(cx)
+
+        book.toc = book.toc + ((epub.Section(category), tuple(items)), )
+
+    # add navigation files
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+
+    # define css style
+    style = '''
+@namespace epub "http://www.idpf.org/2007/ops";
+body {
+    font-family: Cambria, Liberation Serif, Bitstream Vera Serif, Georgia, Times, Times New Roman, serif; white-space: pre-line;
+}
+h2 {
+     text-align: left;
+     text-transform: uppercase;
+     font-weight: 200;     
+}
+ol {
+        list-style-type: none;
+}
+ol > li:first-child {
+        margin-top: 0.3em;
+}
+nav[epub|type~='toc'] > ol > li > ol  {
+    list-style-type:square;
+}
+nav[epub|type~='toc'] > ol > li > ol > li {
+        margin-top: 0.3em;
+}
+'''
+
+    # add css file
+    nav_css = epub.EpubItem(uid="style_nav", file_name="style/nav.css", media_type="text/css", content=style)
+    book.add_item(nav_css)
+
+    # create spine
+    book.spine = ['nav', c1]
+    book.spine = book.spine + pa_list
+
     epub.write_epub(category + '.epub', book, {})
 
     return
@@ -167,6 +208,9 @@ def  single_down_category(links, category, pthread_num ):
         lock.release()
 
     category_dict[category] = page_dicts
+    global ret_dict
+    ret_dict.update(category_dict)
+
     create_pub(category_dict)
     return
 
@@ -189,27 +233,22 @@ def get_host_content():
     print("即将下载链接总数[" + str(i) + "]")
 
     i = 0
+    process_list = []
     for category in absolute_dict:
         # index -> category
         # absolute_dict[index] -> link
         i += 1
         file_str = "\n@@@@@@ " + category + "@@@@@@\n"
         t = Thread(target=single_down_category, args=(absolute_dict[category], category, i))
+        process_list.append(t)
         t.start()
         print("即将下载第[" + str(i) + "]线程：" + category)
-        '''
-        for link in absolute_dict[category]:
-            time.sleep(random.randint(0, 5))
-            i += 1
-            print("即将下载链接[" + str(i) + "]：" + link)
-            page_dict = get_page(link)
-            for title in page_dict:
-                file_str += "\n&&&&&& " + title + " &&&&&&\n"
-                file_str += "\n" + page_dict[title] + ""
-            write_file(file_str)
-        '''
+
+    for t in process_list:
+        t.join()
 
     #print(file_str)
+    create_pub2(ret_dict)
     return
 
 def get_common_content(common_str):
@@ -261,7 +300,7 @@ def get_indexs():
     r = session.get('https://mickey1124.pixnet.net/blog', proxies=proxies, verify=False)
     absolute_dict = {}
 
-    for i in range(1, 4):  # 1 ~ 24
+    for i in range(1, 24):  # 1 ~ 24
         xpath_str = "//*[@id=\"category\"]/div/ul/li[" + str(i) + "]"
         text_title = (r.html.xpath(xpath_str, first=True).text)
         print("分类名称：" + text_title)
@@ -385,6 +424,8 @@ def get_page(url):
 
     xpath_str = "//*[@id=\"article-" + self_number + "\"]"
     title = r.html.xpath(xpath_str, first=True).text
+    #title = convert(title, 'zh-hans')
+    title = opencc_t2s(title)
     #print("标题：" + title)
 
     xpath_str = "//*[@id=\"article-content-inner\"]"
@@ -398,6 +439,7 @@ def get_page(url):
         format_text += common
 
     #format_text = convert(format_text, 'zh-hans')
+    format_text = opencc_t2s(format_text)
     page_dict[title] = format_text
     # print(page_dict)
     #write_file(format_text)
@@ -410,14 +452,6 @@ def get_page_bible():
     bible = ""
     return bible
 
-
 get_host_content()
-#create_pub(category_dict)
-#page = get_page('https://mickey1124.pixnet.net/blog/post/269195376')
-#get_category_links('https://mickey1124.pixnet.net/blog/category/3270852')
-
-#with open("a.txt",'w',encoding='utf-8') as f:
-#    f.write(response.text)
-
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
