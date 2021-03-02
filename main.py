@@ -34,7 +34,7 @@ def add_epub_item(page_dict):
             item = epub.EpubHtml(title=page_title, file_name=page_title + '.xhtml')
             page = "<br />".join(page_dict[page_title].split("\n"))
             item.content = '<h1>' + page_title + '</h1><p>' + page + '</p>'
-            item.set_language('cn')
+            item.set_language('zh')
             item.properties.append('rendition:layout-pre-paginated rendition:orientation-landscape rendition:spread-none')
             item.add_item(default_css)
             item_list.append(item)
@@ -46,11 +46,11 @@ def create_pub2(category_dict):
     # add metadata
     book.set_identifier(time.strftime("%Y%m%d%H%M%S", time.localtime()))
     book.set_title('基督教小小羊園地')
-    book.set_language('cn')
+    book.set_language('zh')
     book.add_author('小小羊')
 
     # define intro chapter
-    c1 = epub.EpubHtml(title='简介', file_name='intro.xhtml', lang='cn')
+    c1 = epub.EpubHtml(title='简介', file_name='intro.xhtml', lang='zh')
     c1.content = u'<html><head></head><body><h1>約翰福音8：32</h1><p>你們必曉得真理，真理必叫你們得以自由</p></body></html>'
 
     # add chapters to the book
@@ -119,11 +119,11 @@ def create_pub(category_dict):
     # add metadata
     book.set_identifier(time.strftime("%Y%m%d%H%M%S", time.localtime()))
     book.set_title('基督教小小羊園地')
-    book.set_language('cn')
+    book.set_language('zh')
     book.add_author('小小羊')
 
     # define intro chapter
-    c1 = epub.EpubHtml(title='简介', file_name='intro.xhtml', lang='cn')
+    c1 = epub.EpubHtml(title='简介', file_name='intro.xhtml', lang='zh')
     c1.content = u'<html><head></head><body><h1>約翰福音8：32</h1><p>你們必曉得真理，真理必叫你們得以自由</p></body></html>'
 
     # add chapters to the book
@@ -193,7 +193,7 @@ def  single_down_category(links, category, pthread_num ):
     page_dicts = {} # dicts that page content
     for link in links:
         file_str = "\n@@@@@@ " + category + "@@@@@@\n"
-        wait_time = random.randint(0, 8)
+        wait_time = random.randint(0, 6)
         time.sleep(wait_time)
         i += 1
         print("(" + str(wait_time) + ")即将下载链接(" + category + ")[" + str(i) + "]线程号[" + str(pthread_num) + ")]：" + link)
@@ -391,12 +391,23 @@ def get_link_exceptions(url):
     except HTMLSession.exceptions.RequestException as err:
         print("OOps[" + url + "]: Something Else", err)
         write_error(url)
+    except:
+        write_error(url)
+
     return r
 
 def get_common(url):
     url = url + "/comments"
-
+    i = 0
     r = get_link_exceptions(url)
+    while i < 3:
+        if r.strip() == "":
+            i = i + 1
+            time.sleep(3)
+            r = get_link_exceptions(url)
+        else:
+            break
+
     '''
     proxies = {"https": "http://127.0.0.1:1082"}
     session = HTMLSession()
