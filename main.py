@@ -18,6 +18,7 @@ import threading
 urllib3.disable_warnings()
 
 root_url = "https://mickey1124.pixnet.net/"
+#category_dict = {}
 
 def add_epub_item(page_dict):
     style = '''BODY { text-align: justify;}'''
@@ -33,8 +34,13 @@ def add_epub_item(page_dict):
             item_list.append(item)
     return item_list
 
-def create_pub():
+def create_pub(category_dict):
     book = epub.EpubBook()
+
+    print("+++++++++++++++")
+    print(type(category_dict))
+    print((category_dict))
+    print("---------------")
 
     # add metadata
     book.set_identifier(time.strftime("%Y%m%d%H%M%S", time.localtime()))
@@ -47,31 +53,51 @@ def create_pub():
     c1.content = u'<html><head></head><body><h1>約翰福音8：32</h1><p>你們必曉得真理，真理必叫你們得以自由</p></body></html>'
 
     # define style
-    style = '''BODY { text-align: justify;}'''
+    #style = '''BODY { text-align: justify;}'''
 
     # define css
-    default_css = epub.EpubItem(uid="style_default", file_name="style/default.css", media_type="text/css", content=style)
-    book.add_item(default_css)
+    #default_css = epub.EpubItem(uid="style_default", file_name="style/default.css", media_type="text/css", content=style)
+    #book.add_item(default_css)
 
     # about chapter
-    c2 = epub.EpubHtml(title='About this book', file_name='about.xhtml')
-    c2.content = '<h1>About this book</h1><p>Helou, this is my book! There are many books, but this one is mine.</p>'
-    c2.set_language('cn')
-    c2.properties.append('rendition:layout-pre-paginated rendition:orientation-landscape rendition:spread-none')
-    c2.add_item(default_css)
+    #c2 = epub.EpubHtml(title='About this book', file_name='about.xhtml')
+    #c2.content = '<h1>About this book</h1><p>Helou, this is my book! There are many books, but this one is mine.</p>'
+    #c2.set_language('cn')
+    #c2.properties.append('rendition:layout-pre-paginated rendition:orientation-landscape rendition:spread-none')
+    #c2.add_item(default_css)
 
     # add chapters to the book
     book.add_item(c1)
-    book.add_item(c2)
+    #book.add_item(c2)
 
     # create table of contents
     # - add manual link
     # - add section
     # - add auto created links to chapters
 
-    book.toc = (epub.Link('intro.xhtml', '简介', 'intro'),
-                (epub.Section('Languages'), (c1, c2))
-               )
+    #book.toc = (epub.Link('intro.xhtml', '简介', 'intro'),
+    #            (epub.Section('Languages'), (c1, c2))
+    #           )
+
+    book.toc = (epub.Link('intro.xhtml', '简介', 'intro'), )
+    pa_list = []
+    for category in category_dict:  # 分类字典，分类 + 页面字典
+        items = add_epub_item(category_dict[category])
+        for cx in items:
+            book.add_item(cx)
+            pa_list.append(cx)
+        '''
+        for page_dict in category_dict[category]: # 页面字典
+            print(page_dict)
+            print(type(page_dict))
+            items = add_epub_item(page_dict)
+            for cx in items:
+                book.add_item(cx)
+                pa_list.append(cx)
+        '''
+        book.toc = book.toc + ((epub.Section(category), tuple(items)), )
+
+    #book.toc = toc0 + toc2
 
     # add navigation files
     book.add_item(epub.EpubNcx())
@@ -107,17 +133,22 @@ nav[epub|type~='toc'] > ol > li > ol > li {
     book.add_item(nav_css)
 
     # create spine
-    book.spine = ['nav', c1, c2]
-
+    #book.spine = ['nav', c1, c2]
+    book.spine = ['nav', c1]
+    book.spine = book.spine + pa_list
+    # for pa in pa_list:
+    #     book.spine.append(pa)
+    #book.spine.extend(pa_list)
+    # print (book.spine)
     # create epub file
-    epub.write_epub('test.epub', book, {})
+    epub.write_epub(category + '.epub', book, {})
 
     return
 
 lock = threading.Lock()
 def  single_down_category(links, category, pthread_num ):
     i = 0
-    category_dict = {}  # return value
+    category_dict = {}
     page_dicts = {} # dicts that page content
     for link in links:
         file_str = "\n@@@@@@ " + category + "@@@@@@\n"
@@ -136,8 +167,8 @@ def  single_down_category(links, category, pthread_num ):
         lock.release()
 
     category_dict[category] = page_dicts
-
-    return category_dict
+    create_pub(category_dict)
+    return
 
 def get_host_content():
     host_str = ""
@@ -230,7 +261,7 @@ def get_indexs():
     r = session.get('https://mickey1124.pixnet.net/blog', proxies=proxies, verify=False)
     absolute_dict = {}
 
-    for i in range(1, 24):  # 1 ~23
+    for i in range(1, 4):  # 1 ~ 24
         xpath_str = "//*[@id=\"category\"]/div/ul/li[" + str(i) + "]"
         text_title = (r.html.xpath(xpath_str, first=True).text)
         print("分类名称：" + text_title)
@@ -368,7 +399,7 @@ def get_page(url):
 
     #format_text = convert(format_text, 'zh-hans')
     page_dict[title] = format_text
-    print(page_dict)
+    # print(page_dict)
     #write_file(format_text)
     return page_dict
 
@@ -379,8 +410,9 @@ def get_page_bible():
     bible = ""
     return bible
 
-create_pub()
-#get_host_content()
+
+get_host_content()
+#create_pub(category_dict)
 #page = get_page('https://mickey1124.pixnet.net/blog/post/269195376')
 #get_category_links('https://mickey1124.pixnet.net/blog/category/3270852')
 
