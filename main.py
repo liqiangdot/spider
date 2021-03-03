@@ -290,7 +290,7 @@ def write_file(s):
 
 def write_error(s):
     fo = open("err.txt", "a", encoding="utf-8")
-    fo.write(s)
+    fo.write(s + "\n")
     fo.close()
     return
 
@@ -400,8 +400,9 @@ def get_common(url):
     url = url + "/comments"
     i = 0
     r = get_link_exceptions(url)
+
     while i < 3:
-        if r.strip() == "":
+        if r.text.strip() == "":
             i = i + 1
             time.sleep(3)
             r = get_link_exceptions(url)
