@@ -7,18 +7,23 @@
 import os
 import time
 import random
-import urllib3
 import pickle
 import opencc
+import urllib3
+import requests
+import threading
 from ebooklib import epub
-from zhconv import convert
+from random import randint
 from threading import Thread
 from requests_html import HTML
 from requests_html import HTMLSession
-import threading
+
 urllib3.disable_warnings()
 
-root_url = "https://mickey1124.pixnet.net/"
+ROOT_URL = "https://mickey1124.pixnet.net/"
+PROXIES = {"https": "http://127.0.0.1:1082"}
+TOTAL_PAGE_NUMBER = 0
+TOTAL_PAGE_NUMBER_ERROR = 0
 ret_dict = {}
 
 def opencc_t2s(s):
@@ -300,7 +305,7 @@ def get_indexs():
     r = session.get('https://mickey1124.pixnet.net/blog', proxies=proxies, verify=False)
     absolute_dict = {}
 
-    for i in range(1, 24):  # 1 ~ 24
+    for i in range(1, 3):  # 1 ~ 24
         xpath_str = "//*[@id=\"category\"]/div/ul/li[" + str(i) + "]"
         text_title = (r.html.xpath(xpath_str, first=True).text)
         print("分类名称：" + text_title)
@@ -372,44 +377,84 @@ def get_category_links(url):
     return link_list
 
 def get_link_exceptions(url):
-    try:
-        ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0'
-        proxies = {"https": "http://127.0.0.1:1082"}
-        session = HTMLSession()
-        r = session.get(url, proxies=proxies, headers={'user-agent': ua}, verify=False, timeout=12)
-        r.raise_for_status()
+    USER_AGENTS = [
+        "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; AcooBrowser; .NET CLR 1.1.4322; .NET CLR 2.0.50727)",
+        "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.0; Acoo Browser; SLCC1; .NET CLR 2.0.50727; Media Center PC 5.0; .NET CLR 3.0.04506)",
+        "Mozilla/4.0 (compatible; MSIE 7.0; AOL 9.5; AOLBuild 4337.35; Windows NT 5.1; .NET CLR 1.1.4322; .NET CLR 2.0.50727)",
+        "Mozilla/5.0 (Windows; U; MSIE 9.0; Windows NT 9.0; en-US)",
+        "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Win64; x64; Trident/5.0; .NET CLR 3.5.30729; .NET CLR 3.0.30729; .NET CLR 2.0.50727; Media Center PC 6.0)",
+        "Mozilla/5.0 (compatible; MSIE 8.0; Windows NT 6.0; Trident/4.0; WOW64; Trident/4.0; SLCC2; .NET CLR 2.0.50727; .NET CLR 3.5.30729; .NET CLR 3.0.30729; .NET CLR 1.0.3705; .NET CLR 1.1.4322)",
+        "Mozilla/4.0 (compatible; MSIE 7.0b; Windows NT 5.2; .NET CLR 1.1.4322; .NET CLR 2.0.50727; InfoPath.2; .NET CLR 3.0.04506.30)",
+        "Mozilla/5.0 (Windows; U; Windows NT 5.1; zh-CN) AppleWebKit/523.15 (KHTML, like Gecko, Safari/419.3) Arora/0.3 (Change: 287 c9dfb30)",
+        "Mozilla/5.0 (X11; U; Linux; en-US) AppleWebKit/527+ (KHTML, like Gecko, Safari/419.3) Arora/0.6",
+        "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.2pre) Gecko/20070215 K-Ninja/2.1.1",
+        "Mozilla/5.0 (Windows; U; Windows NT 5.1; zh-CN; rv:1.9) Gecko/20080705 Firefox/3.0 Kapiko/3.0",
+        "Mozilla/5.0 (X11; Linux i686; U;) Gecko/20070322 Kazehakase/0.4.5",
+        "Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.0.8) Gecko Fedora/1.9.0.8-1.fc10 Kazehakase/0.5.6",
+        "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/535.11 (KHTML, like Gecko) Chrome/17.0.963.56 Safari/535.11",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_3) AppleWebKit/535.20 (KHTML, like Gecko) Chrome/19.0.1036.7 Safari/535.20",
+        "Opera/9.80 (Macintosh; Intel Mac OS X 10.6.8; U; fr) Presto/2.9.168 Version/11.52",
+    ]
 
-    except HTMLSession.exceptions.HTTPError as errh:
-        print("Http Error[" + url + "]:", errh)
-        write_error(url)
-    except HTMLSession.exceptions.ConnectionError as errc:
-        print("Error Connecting" + url + "]:", errc)
-        write_error(url)
-    except HTMLSession.exceptions.Timeout as errt:
-        print("Timeout Error" + url + "]:", errt)
-        write_error(url)
-    except HTMLSession.exceptions.RequestException as err:
-        print("OOps[" + url + "]: Something Else", err)
-        write_error(url)
-    except:
-        write_error(url)
+    random_agent = USER_AGENTS[randint(0, len(USER_AGENTS) - 1)]
+    headers = {
+        'User-Agent': random_agent,
+    }
+
+    while True:
+        try:
+            session = HTMLSession()
+            global PROXIES
+            r = session.get(url, proxies=PROXIES, headers=headers, verify=False, timeout=12)
+            r.raise_for_status()
+            return r
+        except requests.exceptions.RequestException as e:
+            print(e)
+            r = None
+            break
+
+        finally:
+            break
 
     return r
 
-def get_common(url):
-    url = url + "/comments"
-    i = 0
+def get_link_exceptions_try(url):
+    i = 1
     r = get_link_exceptions(url)
 
-    while i < 3:
+    while (i < 4) and (r is None):
+        i = i + 1
+        time.sleep(3)
+        r = get_link_exceptions(url)
+
+    if r is None:
+        write_error(url)
+        global TOTAL_PAGE_NUMBER_ERROR
+        TOTAL_PAGE_NUMBER_ERROR = TOTAL_PAGE_NUMBER_ERROR + 1
+        print("失败下载页面个数:" + str(TOTAL_PAGE_NUMBER_ERROR))
+        return None
+    else:
+        global TOTAL_PAGE_NUMBER
+        TOTAL_PAGE_NUMBER = TOTAL_PAGE_NUMBER + 1
+        print("成功下载页面个数：" + str(TOTAL_PAGE_NUMBER))
+        return r
+
+def get_common(url):
+    url = url + "/comments"
+    common_list = []
+    r = get_link_exceptions_try(url)
+
+    if r is None:
+        return common_list
+
+    '''
+    while (i < 4) and (r is None):
         if r.text.strip() == "":
             i = i + 1
             time.sleep(3)
             r = get_link_exceptions(url)
         else:
-            break
-
-    '''
+            break    
     proxies = {"https": "http://127.0.0.1:1082"}
     session = HTMLSession()
     r = session.get(url, proxies=proxies, verify=False)
@@ -421,7 +466,10 @@ def get_common(url):
 
 def get_page(url):
     page_dict = {}
-    r = get_link_exceptions(url)
+    r = get_link_exceptions_try(url)
+
+    if r is None:
+        return page_dict
     '''
     proxies = {"https": "http://127.0.0.1:1082"}
     ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0'
@@ -465,5 +513,7 @@ def get_page_bible():
     return bible
 
 get_host_content()
+print("失败下载页面个数:" + str(TOTAL_PAGE_NUMBER_ERROR))
+print("成功下载页面个数：" + str(TOTAL_PAGE_NUMBER))
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
