@@ -67,7 +67,7 @@ def create_txt():
         write_file3(category + ".html", str_file2)
 
     file_name = "all.html"
-    os.remove(file_name)
+    #os.remove(file_name)
     str_file = "<br />".join(str_file.split("\n"))
     fo = open(file_name, "w", encoding="utf-8")
     fo.write(str_file)
