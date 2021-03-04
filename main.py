@@ -24,7 +24,7 @@ ROOT_URL = "https://mickey1124.pixnet.net/"
 PROXIES = {"https": "http://127.0.0.1:1082"}
 TOTAL_PAGE_NUMBER = 0
 TOTAL_PAGE_NUMBER_ERROR = 0
-ret_dict = {}
+GLOBAL_DICT = {}
 
 def opencc_t2s(s):
     cc = opencc.OpenCC('t2s')
@@ -45,77 +45,33 @@ def add_epub_item(page_dict):
             item_list.append(item)
     return item_list
 
-def create_pub2(category_dict):
-    book = epub.EpubBook()
+def create_txt():
+    if os.path.exists("all.object"):
+        f = open("all.object", 'rb')
+        category_dict = pickle.load(f)
+    else:
+        global  GLOBAL_DICT
+        category_dict = GLOBAL_DICT
 
-    # add metadata
-    book.set_identifier(time.strftime("%Y%m%d%H%M%S", time.localtime()))
-    book.set_title('基督教小小羊園地')
-    book.set_language('zh')
-    book.add_author('小小羊')
+    str_file = ""
+    for category in category_dict:
+        str_file += "\n<h1>" + category + "</h1>\n"
+        str_file2 = "\n<h1>" + category + "</h1>\n"
+        for title in category_dict[category]:
+            str_file += "\n<h2>" + title + "</h2>\n"
+            str_file2 += "\n<h2>" + title + "</h2>\n"
+            str_file += category_dict[category][title]
+            str_file2 += category_dict[category][title]
 
-    # define intro chapter
-    c1 = epub.EpubHtml(title='简介', file_name='intro.xhtml', lang='zh')
-    c1.content = u'<html><head></head><body><h1>約翰福音8：32</h1><p>你們必曉得真理，真理必叫你們得以自由</p></body></html>'
+        str_file2 = "<br />".join(str_file2.split("\n"))
+        write_file3(category + ".html", str_file2)
 
-    # add chapters to the book
-    book.add_item(c1)
-    #book.add_item(c2)
-
-    # create table of contents
-    # - add manual link
-    # - add section
-    # - add auto created links to chapters
-
-    book.toc = (epub.Link('intro.xhtml', '简介', 'intro'), )
-    pa_list = []
-    for category in category_dict:  # 分类字典，分类 + 页面字典
-        items = add_epub_item(category_dict[category])
-        for cx in items:
-            book.add_item(cx)
-            pa_list.append(cx)
-
-        book.toc = book.toc + ((epub.Section(category), tuple(items)), )
-
-    # add navigation files
-    book.add_item(epub.EpubNcx())
-    book.add_item(epub.EpubNav())
-
-    # define css style
-    style = '''
-@namespace epub "http://www.idpf.org/2007/ops";
-body {
-    font-family: Cambria, Liberation Serif, Bitstream Vera Serif, Georgia, Times, Times New Roman, serif; white-space: pre-line;
-}
-h2 {
-     text-align: left;
-     text-transform: uppercase;
-     font-weight: 200;     
-}
-ol {
-        list-style-type: none;
-}
-ol > li:first-child {
-        margin-top: 0.3em;
-}
-nav[epub|type~='toc'] > ol > li > ol  {
-    list-style-type:square;
-}
-nav[epub|type~='toc'] > ol > li > ol > li {
-        margin-top: 0.3em;
-}
-'''
-
-    # add css file
-    nav_css = epub.EpubItem(uid="style_nav", file_name="style/nav.css", media_type="text/css", content=style)
-    book.add_item(nav_css)
-
-    # create spine
-    book.spine = ['nav', c1]
-    book.spine = book.spine + pa_list
-
-    epub.write_epub('all.epub', book, {})
-
+    file_name = "all.html"
+    os.remove(file_name)
+    str_file = "<br />".join(str_file.split("\n"))
+    fo = open(file_name, "w", encoding="utf-8")
+    fo.write(str_file)
+    fo.close()
     return
 
 def create_pub(category_dict):
@@ -201,7 +157,7 @@ def  single_down_category(links, category, pthread_num ):
         wait_time = random.randint(0, 6)
         time.sleep(wait_time)
         i += 1
-        print("(" + str(wait_time) + ")即将下载链接(" + category + ")[" + str(i) + "]线程号[" + str(pthread_num) + ")]：" + link)
+        print("(" + str(wait_time) + ")即将下载链接(" + category + ")[" + str(i) + "]线程号[" + str(pthread_num) + "]：" + link)
         page_dict = get_page(link)
         for title in page_dict:
             file_str += "\n&&&&&& " + title + " &&&&&&\n"
@@ -212,11 +168,14 @@ def  single_down_category(links, category, pthread_num ):
         write_file(file_str)
         lock.release()
 
+        write_file2(category, file_str)
+
     category_dict[category] = page_dicts
-    global ret_dict
-    ret_dict.update(category_dict)
+    global GLOBAL_DICT
+    GLOBAL_DICT.update(category_dict)
 
     create_pub(category_dict)
+
     return
 
 def get_host_content():
@@ -252,8 +211,11 @@ def get_host_content():
     for t in process_list:
         t.join()
 
-    #print(file_str)
-    create_pub2(ret_dict)
+    # save all object
+    global GLOBAL_DICT
+    f = open('all.object', 'wb')
+    pickle.dump(GLOBAL_DICT, f)
+
     return
 
 def get_common_content(common_str):
@@ -293,6 +255,18 @@ def write_file(s):
     fo.close()
     return
 
+def write_file2(f, s):
+    fo = open(f + ".txt", "a", encoding="utf-8")
+    fo.write(s)
+    fo.close()
+    return
+
+def write_file3(f, s):
+    fo = open(f, "a", encoding="utf-8")
+    fo.write(s)
+    fo.close()
+    return
+
 def write_error(s):
     fo = open("err.txt", "a", encoding="utf-8")
     fo.write(s + "\n")
@@ -305,7 +279,7 @@ def get_indexs():
     r = session.get('https://mickey1124.pixnet.net/blog', proxies=proxies, verify=False)
     absolute_dict = {}
 
-    for i in range(1, 3):  # 1 ~ 24
+    for i in range(1, 24):  # 1 ~ 24
         xpath_str = "//*[@id=\"category\"]/div/ul/li[" + str(i) + "]"
         text_title = (r.html.xpath(xpath_str, first=True).text)
         print("分类名称：" + text_title)
@@ -436,7 +410,7 @@ def get_link_exceptions_try(url):
     else:
         global TOTAL_PAGE_NUMBER
         TOTAL_PAGE_NUMBER = TOTAL_PAGE_NUMBER + 1
-        print("成功下载页面个数：" + str(TOTAL_PAGE_NUMBER))
+        print("成功下载页面个数：[" + str(TOTAL_PAGE_NUMBER) + "]失败下载页面个数:[" + str(TOTAL_PAGE_NUMBER_ERROR) + "]")
         return r
 
 def get_common(url):
@@ -494,7 +468,7 @@ def get_page(url):
     format_text = "\n标题：" + title + "\n时间：" + page_time + '\n' + content
 
     common_list = get_common(url)
-    format_text += "\n****** 注释 ******\n"
+    format_text += "\n\n****** 注释 ******\n\n"
     for common in common_list:
         format_text += common
 
@@ -512,8 +486,7 @@ def get_page_bible():
     bible = ""
     return bible
 
-get_host_content()
-print("失败下载页面个数:" + str(TOTAL_PAGE_NUMBER_ERROR))
-print("成功下载页面个数：" + str(TOTAL_PAGE_NUMBER))
+#get_host_content()
+create_txt()
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
