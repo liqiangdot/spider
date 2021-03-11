@@ -55,23 +55,27 @@ def create_txt():
 
     str_file = ""
     for category in category_dict:
-        str_file += "\n<h1>" + category + "</h1>\n"
-        str_file2 = "\n<h1>" + category + "</h1>\n"
+        str_file += "\n@@@@@@ " + category + " @@@@@@\n"
         for title in category_dict[category]:
-            str_file += "\n<h2>" + title + "</h2>\n"
-            str_file2 += "\n<h2>" + title + "</h2>\n"
+            str_file += "\n&&&&&& " + title + " &&&&&&\n"
             str_file += category_dict[category][title]
-            str_file2 += category_dict[category][title]
 
-        str_file2 = "<br />".join(str_file2.split("\n"))
-        write_file3(category + ".html", str_file2)
+        #str_file2 = "<br />".join(str_file2.split("\n"))
+        #file_n = opencc_t2s(category)
+        #write_file3(file_n + ".txt", str_file2)
 
-    file_name = "all.html"
-    #os.remove(file_name)
-    str_file = "<br />".join(str_file.split("\n"))
-    fo = open(file_name, "w", encoding="utf-8")
-    fo.write(str_file)
-    fo.close()
+    # file_name = "all.html"
+    # #os.remove(file_name)
+    # str_file = "<br />".join(str_file.split("\n"))
+    # fo = open(file_name, "w", encoding="utf-8")
+    # fo.write(str_file)
+    # fo.close()
+
+    file_name = "all.txt"
+    write_file3(file_name, str_file)
+
+    get_bible_list(str_file)
+
     return
 
 def create_pub(category_dict):
@@ -241,7 +245,7 @@ def get_common_content(common_str):
             print("注释作者为空")
         else:
             common_author = str(item.xpath(xpath_str, first=True).text)
-        common_info = "作者：" + common_author + "\n时间：" + common_time + "\n" + common_text
+        common_info = "\n作者：" + common_author + "\n时间：" + common_time + "\n" + common_text + "\n"
         common_list.append(common_info)
         #print("时间：\n" + common_time)
         #print("作者：\n" + common_author)
@@ -486,7 +490,132 @@ def get_page_bible():
     bible = ""
     return bible
 
+
+def get_bibles():
+    str = '''讲出『洁净的』、的动物了。『耶母』（创7：1-2）没错出『耶母111』『耶母2222』（创7：1-2）『洁净的』'''
+
+
+    r = get_bible_list(str)
+    #while r != -1:
+    #    = get_one(str[r:], 0)
+
+def get_paper_list():
+    paper_list = ["创","出", "利", "民","申", "书", "士", "得", "撒上","撒下","王上","王下", "代上", "代下", "拉", "尼",
+"斯",
+"伯",
+"诗",
+"箴",
+"传",
+"歌",
+"赛",
+"耶",
+"哀",
+"结",
+"但",
+"何",
+"珥",
+"摩",
+"俄",
+"拿",
+"弥",
+"鸿",
+"哈",
+"番",
+"该",
+"亚",
+"玛",
+"太",
+"可",
+"路",
+"约",
+"徒",
+"罗",
+"林前",
+"林后",
+"加",
+"弗",
+"腓",
+"西",
+"帖前",
+"帖后",
+"提前",
+"提后",
+"多",
+"门",
+"来",
+"雅",
+"彼前",
+"彼后",
+"约壹",
+"约贰",
+"约叁",
+"犹",
+"启"]
+    return paper_list
+
+def get_bible_list(str):
+    out = ""
+    ret = 0
+    start = 0
+    l = len(str)
+    bible_list = []
+    paper_list = get_paper_list()
+
+    while start < l:
+        out = ""
+        point1 = str.find("『", start)
+        ret = point1
+        if (point1 != -1):
+            start = point1
+            point2 = str.find("』", point1)
+            ret = point2
+            if point2 != -1:
+                start = point2
+                # find 『 and 』
+                point3 = str.find("（", point2, point2 + 8)
+                ret = point3
+                if point3 != -1:
+                    start = point3
+                    point4 = str.find("）", point3, point3 + 8)
+                    ret = point4
+                    if point4 != -1:
+                        start = point3
+                        # find （ and ）
+                        out = str[point1: point4 + 1]
+                        out = out.replace("\n", "")
+                        bible = str[point3:point4]
+                        find = 0
+                        for p in paper_list:
+                            op = bible.find(p)
+                            if op != -1:
+                                find = 1
+                                break
+                        fl = bible.find("：")
+                        if fl == -1:
+                            find = 0
+                        if find == 1:
+                            out = out.replace("（", "\t（")
+                            bible_list.append(out)
+                            print(out)
+
+        else:
+            start = l
+
+    l2 = []
+    for i in bible_list:
+        if not i in l2:
+            l2.append(i)
+
+    file_name = "bible.txt"
+    f = ""
+    for s in l2:
+        f += s + "\n"
+
+    write_file3(file_name, f)
+    return ret
+
 #get_host_content()
 create_txt()
-
+#get_bibles()
+#get_test()
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
